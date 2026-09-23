@@ -1,0 +1,18 @@
+[project]
+name = "htr-confidence-tester"
+version = "0.1.0"
+description = "Assess HTR confidence by running a Qwen 3.5 VLM finetune multiple times and measuring where outputs diverge"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.57",
+    "accelerate>=1.0",
+    "pillow>=10.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
+    "torchvision>=0.29.0",
+]
+
+[tool.uv]
+package = false

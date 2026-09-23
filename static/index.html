@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTR Confidence Tester</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #f7f2e7;
+    --panel: #fffdf6;
+    --panel-2: #fbf7ec;
+    --hairline: #e4dac4;
+    --ink: #2b2118;
+    --ink-soft: #6b5d4a;
+    --rubric: #9e2b25;
+    --gold: #a8842c;
+    --ok: #3d6b45;
+    --c-100: transparent;
+    --c-80: #f3e7bd;
+    --c-60: #f0d193;
+    --c-40: #eeb079;
+    --c-low: #e98c74;
+    --serif: "EB Garamond", Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--parchment); color: var(--ink);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 18px 28px 14px; border-bottom: 1px solid var(--hairline);
+    background: var(--panel);
+  }
+  header h1 { font-family: var(--serif); font-weight: 600; font-size: 26px; margin: 0; letter-spacing: .3px; }
+  header h1 .amp { color: var(--rubric); }
+  header .sub { color: var(--ink-soft); font-size: 13px; }
+  .model-chip {
+    margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft);
+    border: 1px solid var(--hairline); background: var(--panel-2);
+    padding: 3px 10px; border-radius: 999px;
+  }
+  .model-chip b { color: var(--ink); font-weight: 500; }
+
+  .layout {
+    display: grid; grid-template-columns: 330px minmax(280px, 460px) 1fr;
+    gap: 18px; padding: 18px 28px 40px; align-items: start;
+    max-width: 1700px; margin: 0 auto;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    .viewer .frame { max-height: 420px; }
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 16px; box-shadow: 0 1px 2px rgba(43,33,24,.04);
+  }
+  .card h2 {
+    font-family: var(--serif); font-size: 17px; font-weight: 600;
+    margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline);
+  }
+  .stack > * + * { margin-top: 16px; }
+
+  /* image picker */
+  .thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .thumb {
+    border: 2px solid var(--hairline); border-radius: 8px; overflow: hidden;
+    cursor: pointer; background: var(--panel-2); padding: 0; text-align: left;
+  }
+  .thumb.sel { border-color: var(--rubric); box-shadow: 0 0 0 3px rgba(158,43,37,.12); }
+  .thumb img { width: 100%; height: 92px; object-fit: cover; display: block; }
+  .thumb .t { font-size: 11.5px; font-weight: 600; padding: 5px 7px 1px; }
+  .thumb .d { font-size: 10.5px; color: var(--ink-soft); padding: 0 7px 6px; }
+  .upload-row { margin-top: 10px; }
+  .upload-row input[type=file] { display: none; }
+
+  /* controls */
+  label.ctl { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 4px; }
+  .ctl-row { margin-bottom: 14px; }
+  .hint { color: var(--ink-soft); font-size: 11.5px; margin-top: 3px; }
+  input[type=range] { width: 100%; accent-color: var(--rubric); }
+  .range-val { font-family: var(--mono); font-size: 12px; color: var(--rubric); font-weight: 500; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--hairline);
+    background: var(--panel-2); font-size: 16px; cursor: pointer; color: var(--ink);
+  }
+  .stepper .n { font-family: var(--serif); font-size: 22px; font-weight: 600; min-width: 34px; text-align: center; }
+  details.adv { border-top: 1px dashed var(--hairline); padding-top: 10px; }
+  details.adv summary { cursor: pointer; font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }
+  details.adv .inner { padding-top: 10px; }
+  input[type=number] {
+    width: 90px; padding: 4px 8px; border: 1px solid var(--hairline); border-radius: 6px;
+    background: var(--panel-2); font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+  }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; margin-top: 10px; }
+  .check input { accent-color: var(--rubric); margin-top: 2px; }
+
+  .run-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer;
+    background: var(--rubric); color: #fdf8ef; font-family: var(--serif);
+    font-size: 17px; font-weight: 600; letter-spacing: .4px;
+  }
+  .run-btn:hover { background: #872420; }
+  .run-btn:disabled { background: #c4b8a4; cursor: not-allowed; }
+  .cancel-btn {
+    width: 100%; margin-top: 8px; padding: 8px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--hairline); background: var(--panel-2); color: var(--ink-soft);
+    font-size: 12.5px; display: none;
+  }
+
+  /* viewer */
+  @media (min-width: 1101px) { .viewer { position: sticky; top: 18px; } }
+  .viewer .frame {
+    border: 1px solid var(--hairline); border-radius: 8px; overflow: auto;
+    max-height: calc(100vh - 160px); background: #efe8d8; cursor: zoom-in;
+  }
+  .viewer img { width: 100%; display: block; }
+  .viewer .frame.zoomed { cursor: zoom-out; }
+  .viewer .frame.zoomed img { width: 175%; }
+  .viewer .cap { font-size: 12px; color: var(--ink-soft); margin-top: 8px; font-style: italic; font-family: var(--serif); }
+
+  /* progress */
+  .progress-bar { height: 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--hairline); overflow: hidden; margin: 10px 0 6px; }
+  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--rubric)); width: 0%; transition: width .6s; }
+  .prog-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); font-family: var(--mono); }
+  .live {
+    margin-top: 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--hairline);
+    border-radius: 8px; font-family: var(--serif); font-size: 14.5px; white-space: pre-wrap;
+    max-height: 220px; overflow-y: auto; color: var(--ink-soft);
+  }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px; border: 2px solid var(--hairline);
+    border-top-color: var(--rubric); border-radius: 50%; animation: spin .8s linear infinite;
+    vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* results */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 8px; padding: 10px 12px; }
+  .tile .v { font-family: var(--serif); font-size: 24px; font-weight: 600; }
+  .tile .v.warn { color: var(--rubric); }
+  .tile .v.good { color: var(--ok); }
+  .tile .k { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .6px; }
+
+  .legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-soft); margin-bottom: 12px; }
+  .legend .sw { width: 26px; height: 13px; border-radius: 3px; border: 1px solid var(--hairline); display: inline-block; vertical-align: -2px; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--hairline); margin-bottom: 14px; }
+  .tab {
+    padding: 7px 14px; border: none; background: none; cursor: pointer; font-family: var(--sans);
+    font-size: 13px; font-weight: 600; color: var(--ink-soft); border-bottom: 2px solid transparent;
+  }
+  .tab.on { color: var(--rubric); border-bottom-color: var(--rubric); }
+
+  .view-toggle { display: inline-flex; border: 1px solid var(--hairline); border-radius: 7px; overflow: hidden; margin-bottom: 12px; }
+  .view-toggle button { border: none; background: var(--panel-2); padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--ink-soft); font-weight: 600; }
+  .view-toggle button.on { background: var(--ink); color: var(--parchment); }
+
+  .transcript {
+    font-family: var(--serif); font-size: 19px; line-height: 2.05;
+    background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 8px;
+    padding: 18px 22px; overflow-x: auto;
+  }
+  .tline { white-space: nowrap; }
+  .tline .lnum {
+    display: inline-block; width: 30px; font-family: var(--mono); font-size: 10.5px;
+    color: #b3a68d; user-select: none; vertical-align: 1px;
+  }
+  .w { border-radius: 4px; padding: 1px 2px; cursor: pointer; }
+  .w:hover { outline: 1.5px solid var(--gold); }
+  .w.ins { box-shadow: 0 2px 0 -0.5px var(--rubric); }
+  .ch { border-radius: 2px; }
+
+  .popover {
+    position: absolute; z-index: 50; background: var(--ink); color: var(--parchment);
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; min-width: 170px; max-width: 340px;
+    box-shadow: 0 6px 24px rgba(43,33,24,.35);
+  }
+  .popover h4 { margin: 0 0 6px; font-family: var(--serif); font-size: 15px; border-bottom: 1px solid rgba(247,242,231,.25); padding-bottom: 5px; }
+  .popover .var { display: flex; justify-content: space-between; gap: 16px; font-family: var(--serif); font-size: 15px; padding: 1.5px 0; }
+  .popover .var .c { font-family: var(--mono); font-size: 11.5px; color: #d9c9a3; }
+  .popover .var.ref .c::after { content: " ·ref"; color: var(--gold); }
+  .popover .omit { font-style: italic; color: #b3a68d; }
+
+  .run-block { border: 1px solid var(--hairline); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .run-block summary {
+    padding: 9px 14px; cursor: pointer; background: var(--panel-2); font-weight: 600; font-size: 13px;
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  .run-block summary .meta { font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--ink-soft); }
+  .run-block pre {
+    margin: 0; padding: 14px 16px; font-family: var(--serif); font-size: 16px;
+    white-space: pre-wrap; line-height: 1.75;
+  }
+  .badge-ref { font-size: 10px; background: var(--gold); color: #fff; border-radius: 4px; padding: 1px 6px; letter-spacing: .5px; }
+
+  table.matrix { border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  table.matrix td, table.matrix th { border: 1px solid var(--hairline); padding: 5px 10px; text-align: center; }
+  table.matrix th { background: var(--panel-2); font-weight: 500; }
+
+  .dl-btn {
+    margin-top: 14px; padding: 7px 14px; border: 1px solid var(--hairline); border-radius: 7px;
+    background: var(--panel-2); cursor: pointer; font-size: 12.5px; color: var(--ink); font-weight: 600;
+  }
+  .empty { color: var(--ink-soft); font-style: italic; font-family: var(--serif); font-size: 16px; padding: 30px 10px; text-align: center; }
+  .error-box { background: #f7e5e2; border: 1px solid #dfb0a9; color: #7c231e; border-radius: 8px; padding: 12px 14px; font-size: 13px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HTR Confidence Tester</h1>
+  <span class="sub">run the model several times · where the readings diverge, trust them less</span>
+  <span class="model-chip" id="modelChip">model: <b>loading…</b></span>
+</header>
+
+<div class="layout">
+  <!-- ===== left: setup ===== -->
+  <div class="stack">
+    <div class="card">
+      <h2>Manuscript</h2>
+      <div class="thumbs" id="thumbs"></div>
+      <div class="upload-row">
+        <label>
+          <input type="file" id="fileInput" accept="image/*">
+          <button class="dl-btn" style="margin-top:0;width:100%" onclick="document.getElementById('fileInput').click()">Upload your own page…</button>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Runs</h2>
+      <div class="ctl-row">
+        <label class="ctl">Number of runs</label>
+        <div class="stepper">
+          <button onclick="stepRuns(-1)">−</button>
+          <span class="n" id="numRuns">5</span>
+          <button onclick="stepRuns(1)">+</button>
+        </div>
+        <div class="hint">More runs → finer-grained confidence, longer wait.</div>
+      </div>
+      <div class="ctl-row">
+        <label class="ctl">Temperature <span class="range-val" id="tempVal">0.70</span></label>
+        <input type="range" id="temp" min="0.1" max="1.5" step="0.05" value="0.7" oninput="tempVal.textContent=(+this.value).toFixed(2)">
+        <div class="hint">Sampling heat. Higher spreads the runs apart; too high and everything diverges.</div>
+      </div>
+      <details class="adv">
+        <summary>Advanced</summary>
+        <div class="inner">
+          <div class="ctl-row">
+            <label class="ctl">top_p</label>
+            <input type="number" id="topP" value="0.95" min="0.1" max="1" step="0.05">
+          </div>
+          <div class="ctl-row">
+            <label class="ctl">Max new tokens</label>
+            <input type="number" id="maxTok" value="3072" min="64" max="8192" step="64">
+          </div>
+          <label class="check">
+            <input type="checkbox" id="greedyFirst">
+            <span>Make the first run greedy (deterministic reading alongside the sampled ones)</span>
+          </label>
+        </div>
+      </details>
+      <div style="margin-top:16px">
+        <button class="run-btn" id="runBtn" onclick="startJob()">Transcribe ×5</button>
+        <button class="cancel-btn" id="cancelBtn" onclick="cancelJob()">Cancel after current run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== middle: image viewer ===== -->
+  <div class="viewer">
+    <div class="card">
+      <h2 id="viewerTitle">—</h2>
+      <div class="frame" id="frame" onclick="this.classList.toggle('zoomed')">
+        <img id="viewerImg" alt="selected manuscript page">
+      </div>
+      <div class="cap" id="viewerCap"></div>
+    </div>
+  </div>
+
+  <!-- ===== right: progress + results ===== -->
+  <div class="stack" id="rightCol">
+    <div class="card" id="progressCard" style="display:none">
+      <h2 id="progTitle"><span class="spinner"></span>Working…</h2>
+      <div class="progress-bar"><div class="fill" id="progFill"></div></div>
+      <div class="prog-meta"><span id="progRun"></span><span id="progTok"></span></div>
+      <div class="live" id="liveText" style="display:none"></div>
+    </div>
+
+    <div class="card" id="resultsCard">
+      <h2>Reading &amp; confidence</h2>
+      <div class="empty" id="emptyMsg">Choose a page and press <i>Transcribe</i>.<br>
+        The model reads the page several times; every place the readings disagree is
+        painted by how often they agree — the redder, the less certain.</div>
+      <div id="results" style="display:none">
+        <div class="tiles" id="tiles"></div>
+        <div class="legend">
+          <span>agreement:</span>
+          <span class="sw" style="background:var(--c-low)"></span><span>&lt;40%</span>
+          <span class="sw" style="background:var(--c-40)"></span><span>40–60%</span>
+          <span class="sw" style="background:var(--c-60)"></span><span>60–80%</span>
+          <span class="sw" style="background:var(--c-80)"></span><span>80–99%</span>
+          <span class="sw" style="background:#fff"></span><span>unanimous</span>
+          <span style="margin-left:8px">red underline = extra text inserted here by some runs</span>
+        </div>
+        <div class="tabs">
+          <button class="tab on" data-tab="consensus" onclick="showTab('consensus')">Consensus</button>
+          <button class="tab" data-tab="runs" onclick="showTab('runs')">Individual runs</button>
+          <button class="tab" data-tab="stats" onclick="showTab('stats')">Agreement matrix</button>
+        </div>
+        <div id="tab-consensus">
+          <div class="view-toggle">
+            <button id="vtWord" class="on" onclick="setView('word')">Word view</button>
+            <button id="vtChar" onclick="setView('char')">Character view</button>
+          </div>
+          <div class="transcript" id="transcript"></div>
+          <div class="hint" style="margin-top:8px">Click any word to see what each run wrote there. The displayed text is the medoid run — the one most similar to all the others.</div>
+        </div>
+        <div id="tab-runs" style="display:none"></div>
+        <div id="tab-stats" style="display:none"></div>
+        <button class="dl-btn" onclick="downloadJSON()">Download full analysis (JSON)</button>
+      </div>
+      <div class="error-box" id="errorBox" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let images = [], selected = null, numRuns = 5, job = null, poll = null, result = null, view = 'word';
+
+const $ = id => document.getElementById(id);
+
+async function loadImages() {
+  const r = await fetch('/api/images').then(r => r.json());
+  images = r.images;
+  $('modelChip').innerHTML = 'model: <b>' + r.model + '</b> · ' + (r.device || 'cpu');
+  renderThumbs();
+  if (!selected && images.length) selectImage(images[0].id);
+}
+
+function renderThumbs() {
+  $('thumbs').innerHTML = images.map(im => `
+    <button class="thumb ${selected === im.id ? 'sel' : ''}" onclick="selectImage('${im.id}')">
+      <img src="/api/image/${im.id}" loading="lazy">
+      <div class="t">${im.title}</div><div class="d">${im.detail}</div>
+    </button>`).join('');
+}
+
+function selectImage(id) {
+  selected = id;
+  const im = images.find(i => i.id === id);
+  $('viewerImg').src = '/api/image/' + id;
+  $('viewerTitle').textContent = im ? im.title : id;
+  $('viewerCap').textContent = im ? im.detail : '';
+  renderThumbs();
+}
+
+$('fileInput').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/upload', { method: 'POST', body: fd }).then(r => r.json());
+  await loadImages();
+  selectImage(r.id);
+});
+
+function stepRuns(d) {
+  numRuns = Math.min(25, Math.max(2, numRuns + d));
+  $('numRuns').textContent = numRuns;
+  $('runBtn').textContent = 'Transcribe ×' + numRuns;
+}
+
+async function startJob() {
+  if (!selected) return;
+  $('runBtn').disabled = true;
+  $('cancelBtn').style.display = 'block';
+  $('errorBox').style.display = 'none';
+  $('progressCard').style.display = 'block';
+  $('progTitle').innerHTML = '<span class="spinner"></span>Loading model… (first run downloads/loads the checkpoint)';
+  $('progFill').style.width = '2%';
+  $('progRun').textContent = ''; $('progTok').textContent = '';
+  $('liveText').style.display = 'none';
+
+  const body = {
+    image_id: selected, num_runs: numRuns,
+    temperature: +$('temp').value, top_p: +$('topP').value,
+    max_new_tokens: +$('maxTok').value, greedy_first: $('greedyFirst').checked,
+  };
+  const r = await fetch('/api/jobs', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  }).then(r => r.json());
+  job = r.job_id;
+  poll = setInterval(checkJob, 1200);
+}
+
+async function cancelJob() {
+  if (job) await fetch(`/api/jobs/${job}/cancel`, { method: 'POST' });
+  $('cancelBtn').textContent = 'Cancelling…';
+}
+
+async function checkJob() {
+  const s = await fetch('/api/jobs/' + job).then(r => r.json());
+  if (s.state === 'running' || s.state === 'analyzing') {
+    const done = s.runs.length, cur = s.current_run;
+    const frac = s.state === 'analyzing' ? 0.98 : (done + Math.min(0.9, s.partial_tokens / 900)) / s.num_runs;
+    $('progFill').style.width = Math.round(frac * 100) + '%';
+    $('progTitle').innerHTML = '<span class="spinner"></span>' +
+      (s.state === 'analyzing' ? 'Aligning runs…' : `Reading the page — pass ${cur} of ${s.num_runs}`);
+    $('progRun').textContent = done + ' run' + (done === 1 ? '' : 's') + ' finished';
+    $('progTok').textContent = s.partial_tokens ? s.partial_tokens + ' tokens' : '';
+    if (s.partial) {
+      $('liveText').style.display = 'block';
+      $('liveText').textContent = s.partial;
+      $('liveText').scrollTop = $('liveText').scrollHeight;
+    }
+  } else if (s.state === 'loading_model' || s.state === 'queued') {
+    // keep the loading message
+  } else {
+    clearInterval(poll); poll = null;
+    $('runBtn').disabled = false;
+    $('cancelBtn').style.display = 'none';
+    $('cancelBtn').textContent = 'Cancel after current run';
+    $('progressCard').style.display = 'none';
+    if (s.state === 'done') { result = s; renderResults(s); }
+    else if (s.state === 'error') { $('errorBox').style.display = 'block'; $('errorBox').textContent = s.error; }
+  }
+}
+
+/* ---------- results rendering ---------- */
+
+function confClass(c) {
+  if (c >= 0.999) return null;
+  if (c >= 0.8) return 'var(--c-80)';
+  if (c >= 0.6) return 'var(--c-60)';
+  if (c >= 0.4) return 'var(--c-40)';
+  return 'var(--c-low)';
+}
+
+function renderResults(s) {
+  const a = s.result, st = a.stats;
+  $('emptyMsg').style.display = 'none';
+  $('results').style.display = 'block';
+
+  const meanPct = Math.round(st.mean_word_conf * 100);
+  const fullPct = st.total_words ? Math.round(100 * st.full_agreement / st.total_words) : 0;
+  const noText = a.transcripts.every(t => t.includes('VLM-NO-TEXT'));
+  $('tiles').innerHTML = `
+    <div class="tile"><div class="v ${meanPct >= 85 ? 'good' : meanPct < 60 ? 'warn' : ''}">${meanPct}%</div><div class="k">mean word agreement</div></div>
+    <div class="tile"><div class="v">${st.full_agreement}<span style="font-size:14px;color:var(--ink-soft)">/${st.total_words}</span></div><div class="k">words unanimous (${fullPct}%)</div></div>
+    <div class="tile"><div class="v ${st.flagged ? 'warn' : 'good'}">${st.flagged}</div><div class="k">words &lt;50% — likely errors</div></div>
+    <div class="tile"><div class="v">${st.run_line_counts.join(' · ')}</div><div class="k">lines per run</div></div>` +
+    (noText ? `<div class="tile" style="grid-column:1/-1"><div class="v warn">VLM-NO-TEXT</div><div class="k">the model saw no transcribable text on this page</div></div>` : '');
+
+  renderTranscript(a);
+  renderRuns(s, a);
+  renderMatrix(a);
+  showTab('consensus');
+}
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderTranscript(a) {
+  const el = $('transcript');
+  el.innerHTML = a.lines.map((line, li) => {
+    const words = line.words.map((w, wi) => {
+      let inner;
+      if (view === 'char') {
+        inner = [...w.text].map((ch, k) => {
+          const bg = confClass(w.chars[k] ?? 1);
+          return `<span class="ch"${bg ? ` style="background:${bg}"` : ''}>${esc(ch)}</span>`;
+        }).join('');
+      } else {
+        inner = esc(w.text);
+      }
+      const bg = view === 'word' ? confClass(w.conf) : null;
+      return `<span class="w${w.inserts ? ' ins' : ''}" data-li="${li}" data-wi="${wi}"` +
+        (bg ? ` style="background:${bg}"` : '') +
+        ` title="${Math.round(w.conf * 100)}% of runs agree">${inner}</span>`;
+    }).join(' ');
+    return `<div class="tline"><span class="lnum">${li + 1}</span>${words}</div>`;
+  }).join('');
+  el.querySelectorAll('.w').forEach(sp => sp.addEventListener('click', e => {
+    e.stopPropagation();
+    showPopover(sp, +sp.dataset.li, +sp.dataset.wi);
+  }));
+}
+
+let popEl = null;
+function showPopover(anchor, li, wi) {
+  hidePopover();
+  const w = result.result.lines[li].words[wi];
+  const total = result.result.num_runs;
+  popEl = document.createElement('div');
+  popEl.className = 'popover';
+  popEl.innerHTML = `<h4>“${esc(w.text)}” — ${Math.round(w.conf * 100)}% agree</h4>` +
+    w.variants.map((v, i) =>
+      `<div class="var${i === 0 && v.text === w.text ? ' ref' : ''}">` +
+      (v.text ? `<span>${esc(v.text)}</span>` : `<span class="omit">(omitted)</span>`) +
+      `<span class="c">${v.count}/${total}</span></div>`).join('') +
+    (w.inserts ? `<div class="omit" style="margin-top:5px">${w.inserts} run(s) inserted extra text here</div>` : '');
+  document.body.appendChild(popEl);
+  const r = anchor.getBoundingClientRect();
+  popEl.style.left = Math.min(window.innerWidth - popEl.offsetWidth - 12, r.left + window.scrollX) + 'px';
+  popEl.style.top = (r.bottom + window.scrollY + 7) + 'px';
+}
+function hidePopover() { if (popEl) { popEl.remove(); popEl = null; } }
+document.addEventListener('click', hidePopover);
+
+function renderRuns(s, a) {
+  $('tab-runs').innerHTML = a.transcripts.map((t, i) => {
+    const meta = s.runs[i] || {};
+    return `<details class="run-block" ${i === a.reference_index ? 'open' : ''}>
+      <summary>Run ${i + 1}
+        ${i === a.reference_index ? '<span class="badge-ref">REFERENCE</span>' : ''}
+        ${meta.greedy ? '<span class="badge-ref" style="background:var(--ink-soft)">GREEDY</span>' : ''}
+        <span class="meta">${(t.match(/\n/g) || []).length + 1} lines · ${meta.seconds ?? '?'}s</span>
+      </summary><pre>${esc(t)}</pre></details>`;
+  }).join('');
+}
+
+function renderMatrix(a) {
+  const n = a.num_runs;
+  let h = '<p class="hint" style="margin-top:0">Pairwise character-level similarity between runs (1.00 = identical). A run that sits far from the rest may have skipped or hallucinated lines.</p><table class="matrix"><tr><th></th>';
+  for (let i = 0; i < n; i++) h += `<th>R${i + 1}</th>`;
+  h += '</tr>';
+  for (let i = 0; i < n; i++) {
+    h += `<tr><th>R${i + 1}${i === a.reference_index ? '·ref' : ''}</th>`;
+    for (let j = 0; j < n; j++) {
+      const v = a.pairwise[i][j];
+      const shade = i === j ? 'var(--panel-2)' : (v < 0.85 ? 'var(--c-40)' : v < 0.95 ? 'var(--c-80)' : 'transparent');
+      h += `<td style="background:${shade}">${v.toFixed(2)}</td>`;
+    }
+    h += '</tr>';
+  }
+  $('tab-stats').innerHTML = h + '</table>';
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  ['consensus', 'runs', 'stats'].forEach(n => $('tab-' + n).style.display = n === name ? 'block' : 'none');
+}
+
+function setView(v) {
+  view = v;
+  $('vtWord').classList.toggle('on', v === 'word');
+  $('vtChar').classList.toggle('on', v === 'char');
+  if (result) renderTranscript(result.result);
+}
+
+function downloadJSON() {
+  if (!result) return;
+  const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `htr-confidence-${result.image_id.replace(/\.[^.]+$/, '')}.json`;
+  a.click();
+}
+
+loadImages();
+</script>
+</body>
+</html>

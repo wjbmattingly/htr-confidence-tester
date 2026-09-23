@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "htr-app",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "app:app", "--port", "8765"],
+      "port": 8765
+    }
+  ]
+}

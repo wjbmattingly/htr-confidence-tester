@@ -30,9 +30,9 @@ MAX_SIDE = 1600  # pre-resize uploads; the processor caps visual tokens anyway
 
 PRELOADED = [
     {
-        "id": "gottschalk_antiphonary.jpg",
-        "title": "Gottschalk Antiphonary",
-        "detail": "Carolingian minuscule · Latin · 12th c.",
+        "id": "getty_ms16_lectionary.jpg",
+        "title": "Gospel Lectionary, Getty Ms. 16",
+        "detail": "Caroline minuscule · Latin · late 10th c.",
     },
     {
         "id": "kells_text.jpg",

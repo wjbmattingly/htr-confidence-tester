@@ -1,4 +1,4 @@
-"""Loads the HTR model once and runs repeated sampled generations on CPU."""
+"""Loads the HTR model once and runs repeated sampled generations (CUDA, Metal or CPU)."""
 
 from __future__ import annotations
 
@@ -24,6 +24,8 @@ def _default_device() -> str:
     try:
         import torch
 
+        if torch.cuda.is_available():
+            return "cuda"
         # The hybrid gated-delta-rule layers run via a reference PyTorch
         # implementation on macOS (the fused Triton kernels are CUDA-only);
         # on CPU that is unusably slow, on Metal it is workable.
@@ -54,29 +56,30 @@ class ModelManager:
         self.error: str | None = None
 
     def ensure_loaded(self):
+        # Held for the whole load: jobs submitted together must not import
+        # transformers / load weights concurrently (half-initialized modules).
         with self._lock:
             if self.state == "ready":
                 return
             self.state = "loading"
-        try:
-            import torch
-            from transformers import AutoModelForImageTextToText, AutoProcessor
+            try:
+                import torch
+                from transformers import AutoModelForImageTextToText, AutoProcessor
 
-            torch.set_num_threads(max(1, (os.cpu_count() or 4)))
-            processor = AutoProcessor.from_pretrained(self.repo)
-            # float32 on CPU: bf16 matmuls fall back to slow paths on many Macs
-            dtype = torch.bfloat16 if self.device != "cpu" else torch.float32
-            model = AutoModelForImageTextToText.from_pretrained(self.repo, dtype=dtype)
-            model.to(self.device)
-            model.eval()
-            with self._lock:
+                torch.set_num_threads(max(1, (os.cpu_count() or 4)))
+                processor = AutoProcessor.from_pretrained(self.repo)
+                # float32 on CPU: bf16 matmuls fall back to slow paths on many Macs
+                dtype = torch.bfloat16 if self.device != "cpu" else torch.float32
+                model = AutoModelForImageTextToText.from_pretrained(self.repo, dtype=dtype)
+                model.to(self.device)
+                model.eval()
                 self.processor, self.model = processor, model
                 self.state = "ready"
-        except Exception as e:  # surface load failures to the UI
-            with self._lock:
+                self.error = None
+            except Exception as e:  # surface load failures to the UI
                 self.state = "error"
                 self.error = f"{type(e).__name__}: {e}"
-            raise
+                raise
 
     def transcribe_once(
         self,

@@ -7,6 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* Junicode (SIL OFL) covers MUFI abbreviations and þ ð ƿ æ ᵹ, which EB Garamond lacks */
+  @font-face {
+    font-family: "Junicode";
+    src: url("/static/fonts/JunicodeVF-Roman.woff2") format("woff2");
+    font-weight: 300 700;
+    font-display: swap;
+  }
   :root {
     --parchment: #f7f2e7;
     --panel: #fffdf6;
@@ -23,6 +30,7 @@
     --c-40: #eeb079;
     --c-low: #e98c74;
     --serif: "EB Garamond", Georgia, serif;
+    --script: "Junicode", "EB Garamond", Georgia, serif;
     --sans: "IBM Plex Sans", -apple-system, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
@@ -131,7 +139,7 @@
   .prog-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); font-family: var(--mono); }
   .live {
     margin-top: 10px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--hairline);
-    border-radius: 8px; font-family: var(--serif); font-size: 14.5px; white-space: pre-wrap;
+    border-radius: 8px; font-family: var(--script); font-size: 14.5px; white-space: pre-wrap;
     max-height: 220px; overflow-y: auto; color: var(--ink-soft);
   }
   .spinner {
@@ -164,7 +172,7 @@
   .view-toggle button.on { background: var(--ink); color: var(--parchment); }
 
   .transcript {
-    font-family: var(--serif); font-size: 19px; line-height: 2.05;
+    font-family: var(--script); font-size: 19px; line-height: 2.05;
     background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 8px;
     padding: 18px 22px; overflow-x: auto;
   }
@@ -183,8 +191,8 @@
     border-radius: 8px; padding: 10px 14px; font-size: 13px; min-width: 170px; max-width: 340px;
     box-shadow: 0 6px 24px rgba(43,33,24,.35);
   }
-  .popover h4 { margin: 0 0 6px; font-family: var(--serif); font-size: 15px; border-bottom: 1px solid rgba(247,242,231,.25); padding-bottom: 5px; }
-  .popover .var { display: flex; justify-content: space-between; gap: 16px; font-family: var(--serif); font-size: 15px; padding: 1.5px 0; }
+  .popover h4 { margin: 0 0 6px; font-family: var(--script); font-size: 15px; border-bottom: 1px solid rgba(247,242,231,.25); padding-bottom: 5px; }
+  .popover .var { display: flex; justify-content: space-between; gap: 16px; font-family: var(--script); font-size: 15px; padding: 1.5px 0; }
   .popover .var .c { font-family: var(--mono); font-size: 11.5px; color: #d9c9a3; }
   .popover .var.ref .c::after { content: " ·ref"; color: var(--gold); }
   .popover .omit { font-style: italic; color: #b3a68d; }
@@ -196,7 +204,7 @@
   }
   .run-block summary .meta { font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--ink-soft); }
   .run-block pre {
-    margin: 0; padding: 14px 16px; font-family: var(--serif); font-size: 16px;
+    margin: 0; padding: 14px 16px; font-family: var(--script); font-size: 16px;
     white-space: pre-wrap; line-height: 1.75;
   }
   .badge-ref { font-size: 10px; background: var(--gold); color: #fff; border-radius: 4px; padding: 1px 6px; letter-spacing: .5px; }
@@ -501,7 +509,7 @@ function showPopover(anchor, li, wi) {
   popEl.className = 'popover';
   popEl.innerHTML = `<h4>“${esc(w.text)}” — ${Math.round(w.conf * 100)}% agree</h4>` +
     w.variants.map((v, i) =>
-      `<div class="var${i === 0 && v.text === w.text ? ' ref' : ''}">` +
+      `<div class="var${v.text === w.text ? ' ref' : ''}">` +
       (v.text ? `<span>${esc(v.text)}</span>` : `<span class="omit">(omitted)</span>`) +
       `<span class="c">${v.count}/${total}</span></div>`).join('') +
     (w.inserts ? `<div class="omit" style="margin-top:5px">${w.inserts} run(s) inserted extra text here</div>` : '');
